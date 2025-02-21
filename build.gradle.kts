@@ -56,6 +56,12 @@ allprojects {
 
         // pitest
         implementation("info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.7.4")
+
+        // logback
+        implementation("org.codehaus.janino:janino:3.1.12")
+        testImplementation("org.slf4j:slf4j-nop:2.0.16")
+
+
     }
 
     tasks.withType<Test> {
@@ -67,7 +73,7 @@ allprojects {
             classDumpDir = layout.buildDirectory.dir("jacoco/classpathdumps").get().asFile
         }
 
-        finalizedBy(":moveReports", ":pitestReportAggregate", ":jacocoTestReport")
+        finalizedBy( ":pitestReportAggregate", ":jacocoTestReport")
     }
 
     tasks.jacocoTestReport {
@@ -104,7 +110,7 @@ allprojects {
         }
         into("targetPitestDir")
 
-        finalizedBy(":pitestReportAggregate")
+        //finalizedBy(":pitestReportAggregate")
     }
 
     pitest {
