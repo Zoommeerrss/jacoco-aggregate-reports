@@ -12,3 +12,5 @@ build
 /shelf/
 /workspace.xml
 !/misc.xml
+!/gradle/wrapper/gradle-wrapper.jar
+

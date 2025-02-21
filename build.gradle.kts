@@ -67,7 +67,7 @@ allprojects {
             classDumpDir = layout.buildDirectory.dir("jacoco/classpathdumps").get().asFile
         }
 
-        finalizedBy( ":moveReports", ":pitestReportAggregate", ":jacocoTestReport")
+        finalizedBy(":moveReports", ":pitestReportAggregate", ":jacocoTestReport")
     }
 
     tasks.jacocoTestReport {
@@ -89,21 +89,27 @@ allprojects {
 
     tasks.create<Copy>("moveReports") {
 
-        dependsOn(":utilities:pitest")
-        dependsOn(":list:pitest")
-        dependsOn(":http:pitest")
+//        dependsOn(":utilities:pitest")
+//        dependsOn(":list:pitest")
+          dependsOn("http:build")
 
-        from(project(":http").buildDir) {
+//        println("PATH: " + project(":http").projectDir.path + "/pitest/**")
+//        from(project(":http").projectDir.path + "/pitest/**")
+//        println("TARGET: " + projectDir.path + "/build/reports/pitest")
+//        into(projectDir.path + "/build/reports/pitest")
+
+
+        from("srcPitestDir") {
             include("reports/pitest/**")
         }
-        into("${rootProject.projectDir}/build/")
+        into("targetPitestDir")
 
-        finalizedBy(":pitestReportAggregate", ":inspectClassesForKotlinIC")
+        finalizedBy(":pitestReportAggregate")
     }
 
     pitest {
         targetClasses.add("com.jacoco.aggregate.reports.*")
-        targetTests.add("com.jacoco.aggregate.reports.*Test")
+        targetTests.add(/* element = */ "com.jacoco.aggregate.reports.*Test")
         testSourceSets.add(sourceSets.test)
         mainSourceSets.add(sourceSets.main)
         jvmArgs.addAll("-Xmx1024m", "-Dspring.test.constructor.autowire.mode=all")
@@ -113,6 +119,7 @@ allprojects {
         timestampedReports.set(false)
         junit5PluginVersion.set("0.15")
         exportLineCoverage.set(true)
+
     }
 
     tasks.withType<KotlinCompile>() {
