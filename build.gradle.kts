@@ -62,10 +62,6 @@ allprojects {
 
         useJUnitPlatform()
 
-        dependsOn(":utilities:pitest")
-        dependsOn(":list:pitest")
-        dependsOn(":http:pitest")
-
         extensions.configure(JacocoTaskExtension::class) {
             setDestinationFile(layout.buildDirectory.file("jacoco/test.exec").get().asFile)
             classDumpDir = layout.buildDirectory.dir("jacoco/classpathdumps").get().asFile
@@ -93,11 +89,16 @@ allprojects {
 
     tasks.create<Copy>("moveReports") {
 
+        dependsOn(":utilities:pitest")
+        dependsOn(":list:pitest")
+        dependsOn(":http:pitest")
+
         from(project(":http").buildDir) {
             include("reports/pitest/**")
         }
         into("${rootProject.projectDir}/build/")
 
+        finalizedBy(":pitestReportAggregate", ":inspectClassesForKotlinIC")
     }
 
     pitest {
