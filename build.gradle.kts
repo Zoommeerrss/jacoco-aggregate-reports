@@ -1,4 +1,9 @@
+import groovy.util.*
+import groovy.xml.*
+import groovy.xml.XmlUtil
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.FileInputStream
+import java.util.*
 
 configurations.all() {
     exclude("org.springframework.boot", "spring-boot-starter-tomcat")
@@ -73,7 +78,8 @@ allprojects {
             classDumpDir = layout.buildDirectory.dir("jacoco/classpathdumps").get().asFile
         }
 
-        finalizedBy( ":pitestReportAggregate", ":jacocoTestReport")
+        finalizedBy( ":jacocoTestReport", ":moveReports", ":pitestReportAggregate")
+
     }
 
     tasks.jacocoTestReport {
@@ -93,24 +99,31 @@ allprojects {
         dependsOn(tasks.test)
     }
 
+    /*
+     * it is an workaround to create aggregated pitest reports
+     * Pitest is not able to create the linecoverage.xml and mutations.xml files
+     */
     tasks.create<Copy>("moveReports") {
 
-//        dependsOn(":utilities:pitest")
-//        dependsOn(":list:pitest")
-          dependsOn("http:build")
+        dependsOn(":utilities:pitest")
+        dependsOn(":list:pitest")
+        dependsOn("http:pitest")
 
-//        println("PATH: " + project(":http").projectDir.path + "/pitest/**")
-//        from(project(":http").projectDir.path + "/pitest/**")
-//        println("TARGET: " + projectDir.path + "/build/reports/pitest")
-//        into(projectDir.path + "/build/reports/pitest")
-
-
-        from("srcPitestDir") {
-            include("reports/pitest/**")
+        val properties =  Properties().apply {
+            runCatching { load(FileInputStream("gradle.properties")) }
+                .onFailure { // Optional block if file does not exists
+                    println("Failed to load properties.")
+                    // set default values here
+                }
         }
-        into("targetPitestDir")
 
-        //finalizedBy(":pitestReportAggregate")
+        val targetPitestNewFileDir = properties["targetPitestNewFileDir"]
+
+        val linecoverage = createPitestFile("coverage")
+        file("$targetPitestNewFileDir/linecoverage.xml").writeText("$linecoverage")
+
+        val mutations = createPitestFile("mutations")
+        file("$targetPitestNewFileDir/mutations.xml").writeText("$mutations")
     }
 
     pitest {
@@ -181,4 +194,11 @@ tasks.create<JacocoReport>("jacocoRootReport") {
     }
 
     dependsOn(tasks.jacocoTestReport)
+}
+
+fun createPitestFile(node: String): String {
+
+    project.file("build/reports/pitest/").mkdirs()
+    val xml = Node(null, node, null)
+    return XmlUtil.serialize(xml)
 }
