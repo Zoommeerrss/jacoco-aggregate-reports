@@ -1,4 +1,9 @@
+import groovy.util.*
+import groovy.xml.*
+import groovy.xml.XmlUtil
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.FileInputStream
+import java.util.*
 
 configurations.all() {
     exclude("org.springframework.boot", "spring-boot-starter-tomcat")
@@ -56,22 +61,25 @@ allprojects {
 
         // pitest
         implementation("info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.7.4")
+
+        // logback
+        implementation("org.codehaus.janino:janino:3.1.12")
+        testImplementation("org.slf4j:slf4j-nop:2.0.16")
+
+
     }
 
     tasks.withType<Test> {
 
         useJUnitPlatform()
 
-        dependsOn(":utilities:pitest")
-        dependsOn(":list:pitest")
-        dependsOn(":http:pitest")
-
         extensions.configure(JacocoTaskExtension::class) {
             setDestinationFile(layout.buildDirectory.file("jacoco/test.exec").get().asFile)
             classDumpDir = layout.buildDirectory.dir("jacoco/classpathdumps").get().asFile
         }
 
-        finalizedBy( ":moveReports", ":pitestReportAggregate", ":jacocoTestReport")
+        finalizedBy( ":jacocoTestReport", ":moveReports", ":pitestReportAggregate")
+
     }
 
     tasks.jacocoTestReport {
@@ -91,18 +99,36 @@ allprojects {
         dependsOn(tasks.test)
     }
 
+    /*
+     * it is an workaround to create aggregated pitest reports
+     * Pitest is not able to create the linecoverage.xml and mutations.xml files
+     */
     tasks.create<Copy>("moveReports") {
 
-        from(project(":http").buildDir) {
-            include("reports/pitest/**")
-        }
-        into("${rootProject.projectDir}/build/")
+        dependsOn(":utilities:pitest")
+        dependsOn(":list:pitest")
+        dependsOn("http:pitest")
 
+        val properties =  Properties().apply {
+            runCatching { load(FileInputStream("gradle.properties")) }
+                .onFailure { // Optional block if file does not exists
+                    println("Failed to load properties.")
+                    // set default values here
+                }
+        }
+
+        val targetPitestNewFileDir = properties["targetPitestNewFileDir"]
+
+        val linecoverage = createPitestFile("coverage")
+        file("$targetPitestNewFileDir/linecoverage.xml").writeText("$linecoverage")
+
+        val mutations = createPitestFile("mutations")
+        file("$targetPitestNewFileDir/mutations.xml").writeText("$mutations")
     }
 
     pitest {
         targetClasses.add("com.jacoco.aggregate.reports.*")
-        targetTests.add("com.jacoco.aggregate.reports.*Test")
+        targetTests.add(/* element = */ "com.jacoco.aggregate.reports.*Test")
         testSourceSets.add(sourceSets.test)
         mainSourceSets.add(sourceSets.main)
         jvmArgs.addAll("-Xmx1024m", "-Dspring.test.constructor.autowire.mode=all")
@@ -112,6 +138,7 @@ allprojects {
         timestampedReports.set(false)
         junit5PluginVersion.set("0.15")
         exportLineCoverage.set(true)
+
     }
 
     tasks.withType<KotlinCompile>() {
@@ -167,4 +194,11 @@ tasks.create<JacocoReport>("jacocoRootReport") {
     }
 
     dependsOn(tasks.jacocoTestReport)
+}
+
+fun createPitestFile(node: String): String {
+
+    project.file("build/reports/pitest/").mkdirs()
+    val xml = Node(null, node, null)
+    return XmlUtil.serialize(xml)
 }

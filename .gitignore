@@ -7,3 +7,10 @@ build
 /.idea/
 /logs/
 .gradle
+
+# Default ignored files
+/shelf/
+/workspace.xml
+!/misc.xml
+!/gradle/wrapper/gradle-wrapper.jar
+
